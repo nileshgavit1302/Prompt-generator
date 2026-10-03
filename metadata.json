@@ -1,0 +1,6 @@
+{
+  "name": "PromptForge AI",
+  "description": "Production-grade AI Prompt Engineering workbench with requirement extraction, intent analysis, smart clarification, domain-specific prompt compilers, quality validation, dedicated theme controls, and full versioned history.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
