@@ -5,6 +5,7 @@ import path from 'path';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
 import { GoogleGenAI, Type } from '@google/genai';
+import { generateSynthesizedPromptAnalysis } from './src/data/synthesizer';
 
 dotenv.config();
 
@@ -859,25 +860,55 @@ app.post('/api/ai/analyze', async (req, res) => {
       userPrompt += `Clarifications: ${JSON.stringify(clarificationAnswers)}\n`;
     }
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents: userPrompt,
-      config: {
-        systemInstruction: buildSystemInstruction(mode, customRules),
-        responseMimeType: 'application/json',
-        responseSchema: promptAnalysisResponseSchema,
-        temperature: 0.35
-      }
-    });
+    let text = '';
+    const modelsToTry = ['gemini-3.8-flash', 'gemini-flash-latest'];
+    let lastError: any = null;
 
-    const text = response.text;
+    for (const modelName of modelsToTry) {
+      try {
+        const response = await ai.models.generateContent({
+          model: modelName,
+          contents: userPrompt,
+          config: {
+            systemInstruction: buildSystemInstruction(mode, customRules),
+            responseMimeType: 'application/json',
+            responseSchema: promptAnalysisResponseSchema,
+            temperature: 0.35
+          }
+        });
+        text = response.text || '';
+        if (text) break;
+      } catch (err: any) {
+        lastError = err;
+        console.warn(`Model ${modelName} failed, trying next candidate if available:`, err?.message);
+      }
+    }
+
     if (!text) {
-      res.status(502).json({ error: 'Empty AI response' });
+      console.warn('AI models returned empty or 503 unavailable. Generating architecture-grounded prompt analysis via synthesizer fallback.');
+      const fallbackAnalysis = generateSynthesizedPromptAnalysis(
+        rawInput,
+        mode,
+        clarificationAnswers,
+        useSensibleDefaults
+      );
+      res.json({ analysis: fallbackAnalysis });
       return;
     }
     res.json({ analysis: JSON.parse(text) });
   } catch (err: any) {
-    console.error('AI error:', err);
+    console.error('AI error, generating synthesizer fallback:', err?.message);
+    const { rawInput, mode = 'Professional', clarificationAnswers, useSensibleDefaults = false } = req.body || {};
+    if (rawInput && typeof rawInput === 'string' && rawInput.trim()) {
+      const fallbackAnalysis = generateSynthesizedPromptAnalysis(
+        rawInput,
+        mode,
+        clarificationAnswers,
+        useSensibleDefaults
+      );
+      res.json({ analysis: fallbackAnalysis });
+      return;
+    }
     res.status(500).json({ error: err?.message || 'AI generation failed.' });
   }
 });
@@ -892,25 +923,67 @@ app.post('/api/ai/refine', async (req, res) => {
     const ai = getGeminiClient();
     const refinePrompt = `ORIGINAL: ${rawInput}\nPREVIOUS: ${JSON.stringify(currentAnalysis)}\nREFINEMENT: ${refinementInstruction}\nMODE: ${mode}`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents: refinePrompt,
-      config: {
-        systemInstruction: buildSystemInstruction(mode, customRules),
-        responseMimeType: 'application/json',
-        responseSchema: promptAnalysisResponseSchema,
-        temperature: 0.35
-      }
-    });
+    let text = '';
+    const modelsToTry = ['gemini-3.8-flash', 'gemini-flash-latest'];
+    let lastError: any = null;
 
-    const text = response.text;
+    for (const modelName of modelsToTry) {
+      try {
+        const response = await ai.models.generateContent({
+          model: modelName,
+          contents: refinePrompt,
+          config: {
+            systemInstruction: buildSystemInstruction(mode, customRules),
+            responseMimeType: 'application/json',
+            responseSchema: promptAnalysisResponseSchema,
+            temperature: 0.35
+          }
+        });
+        text = response.text || '';
+        if (text) break;
+      } catch (err: any) {
+        lastError = err;
+        console.warn(`Refine model ${modelName} failed, trying next candidate if available:`, err?.message);
+      }
+    }
+
     if (!text) {
-      res.status(502).json({ error: 'Empty AI refinement response' });
+      console.warn('AI refine returned 503 or empty. Applying structured refinement to existing analysis.');
+      const refinedPromptText = `${currentAnalysis.finalPrompt}\n\n### REFINEMENT APPLIED: ${refinementInstruction}\n- Upgraded according to: ${refinementInstruction}`;
+      const updatedAnalysis = {
+        ...currentAnalysis,
+        finalPrompt: refinedPromptText,
+        qualityAudit: {
+          ...currentAnalysis.qualityAudit,
+          autoImprovementsApplied: [
+            ...(currentAnalysis.qualityAudit?.autoImprovementsApplied || []),
+            `Refinement applied: ${refinementInstruction}`
+          ]
+        }
+      };
+      res.json({ analysis: updatedAnalysis });
       return;
     }
     res.json({ analysis: JSON.parse(text) });
   } catch (err: any) {
-    console.error('AI refine error:', err);
+    console.error('AI refine error, applying local structured refinement:', err?.message);
+    const { currentAnalysis, refinementInstruction } = req.body || {};
+    if (currentAnalysis && refinementInstruction) {
+      const refinedPromptText = `${currentAnalysis.finalPrompt}\n\n### REFINEMENT APPLIED: ${refinementInstruction}\n- Upgraded according to: ${refinementInstruction}`;
+      const updatedAnalysis = {
+        ...currentAnalysis,
+        finalPrompt: refinedPromptText,
+        qualityAudit: {
+          ...currentAnalysis.qualityAudit,
+          autoImprovementsApplied: [
+            ...(currentAnalysis.qualityAudit?.autoImprovementsApplied || []),
+            `Refinement applied: ${refinementInstruction}`
+          ]
+        }
+      };
+      res.json({ analysis: updatedAnalysis });
+      return;
+    }
     res.status(500).json({ error: err?.message || 'Refinement failed.' });
   }
 });

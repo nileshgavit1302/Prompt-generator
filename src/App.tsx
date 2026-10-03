@@ -693,11 +693,16 @@ export function App() {
             e.preventDefault();
             setActiveView('studio');
           }}
-          className={`text-base font-bold tracking-tight whitespace-nowrap ${
+          className={`flex items-center gap-2.5 text-base font-bold tracking-tight whitespace-nowrap ${
             isDark ? 'text-white' : 'text-slate-900'
           }`}
         >
-          PromptForge AI
+          <img
+            src="/src/assets/images/promptforge_app_icon_1791040309092.jpg"
+            alt="PromptForge AI Icon"
+            className="w-7 h-7 rounded-lg shadow-xs object-cover border border-sky-500/30"
+          />
+          <span>PromptForge AI</span>
         </a>
 
         <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
@@ -1815,6 +1820,44 @@ export function App() {
                   Configure visual appearance, theme modes, prompt compilation depth, and account profile.
                 </p>
               </div>
+
+              {/* BRAND IDENTITY & APP STORE ICON SHOWCASE */}
+              <section
+                className={`rounded-xl border p-5 space-y-4 ${
+                  isDark ? 'bg-[#111827] border-slate-800' : 'bg-white border-slate-200'
+                }`}
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <img
+                      src="/src/assets/images/promptforge_app_icon_1791040309092.jpg"
+                      alt="PromptForge AI Mobile App Icon"
+                      className="w-16 h-16 rounded-2xl shadow-md object-cover border border-sky-500/40 ring-2 ring-sky-500/20"
+                    />
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-sm font-bold">PromptForge AI Official App Icon</h2>
+                        <span className="text-[11px] font-mono px-2 py-0.5 rounded border border-emerald-500/40 text-emerald-400 bg-emerald-500/10">
+                          App Store Ready
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400 mt-1 max-w-md leading-relaxed">
+                        Designed for mobile app stores and Android home screens. Features a glowing titanium forge anvil and neural prompt spark symbolizing high-precision requirement engineering.
+                      </p>
+                    </div>
+                  </div>
+                  <a
+                    href="/src/assets/images/promptforge_app_icon_1791040309092.jpg"
+                    download="promptforge_app_icon.jpg"
+                    className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors whitespace-nowrap flex items-center justify-center gap-1.5 ${
+                      isDark ? 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200' : 'border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-700'
+                    }`}
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Download HD Icon</span>
+                  </a>
+                </div>
+              </section>
 
               {/* DEDICATED THEME SETTINGS SECTION */}
               <section
